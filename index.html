@@ -12,21 +12,32 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="favicon.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="apple-touch-startup-image" media="(device-width:390px) and (device-height:844px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="splash/s1170x2532.png">
+<link rel="apple-touch-startup-image" media="(device-width:393px) and (device-height:852px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="splash/s1179x2556.png">
+<link rel="apple-touch-startup-image" media="(device-width:430px) and (device-height:932px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="splash/s1290x2796.png">
+<link rel="apple-touch-startup-image" media="(device-width:428px) and (device-height:926px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="splash/s1284x2778.png">
+<link rel="apple-touch-startup-image" media="(device-width:375px) and (device-height:812px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="splash/s1125x2436.png">
+<link rel="apple-touch-startup-image" media="(device-width:414px) and (device-height:896px) and (-webkit-device-pixel-ratio:2) and (orientation:portrait)" href="splash/s828x1792.png">
+<link rel="apple-touch-startup-image" media="(device-width:375px) and (device-height:667px) and (-webkit-device-pixel-ratio:2) and (orientation:portrait)" href="splash/s750x1334.png">
+<link rel="apple-touch-startup-image" media="(device-width:414px) and (device-height:896px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="splash/s1242x2688.png">
 <style>
   /* غلاف التطبيق: يعرض النظام داخل إطار بملء الشاشة. لا بيانات هنا — كل شيء من النظام. */
   html,body{margin:0;height:100%;background:#171210;font-family:Tahoma,Arial,sans-serif;color:#F0E6D6}
-  iframe{position:fixed;inset:0;width:100%;height:100%;border:0;background:#171210}
-  #splash{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:linear-gradient(150deg,#191411,#241C16 48%,#171013);transition:opacity .35s}
+  iframe{z-index:1;position:fixed;inset:0;width:100%;height:100%;border:0;background:#171210}
+  #splash{z-index:3;position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:linear-gradient(150deg,#191411,#241C16 48%,#171013);transition:opacity .35s}
   #splash img{width:min(300px,72vw)}
   #splash span{font-size:13px;color:#B5A58B}
   .dots i{display:inline-block;width:7px;height:7px;border-radius:99px;background:#E2A33B;margin:0 3px;animation:b 1.2s infinite}
   .dots i:nth-child(2){animation-delay:.2s}.dots i:nth-child(3){animation-delay:.4s}
   @keyframes b{0%,80%,100%{opacity:.25}40%{opacity:1}}
+  #bk{position:fixed;left:12px;bottom:calc(env(safe-area-inset-bottom) + 14px);z-index:5;display:none;align-items:center;gap:6px;background:rgba(36,28,22,.92);color:#F0E6D6;border:1px solid #5a4a38;border-radius:99px;padding:9px 16px;font-size:13px;font-family:inherit;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+  #bk.on{display:flex}
   #off{display:none;max-width:320px;text-align:center;font-size:14px;line-height:1.9;color:#EADDC4}
   #off button{margin-top:12px;background:linear-gradient(180deg,#F6DE96,#E2A33B 60%,#C98F2E);color:#231A0F;border:0;border-radius:10px;padding:11px 24px;font-size:14px;font-weight:bold}
 </style>
 </head>
 <body>
+<button id="bk" type="button" aria-label="رجوع">‹ رجوع</button>
 <div id="splash"><img alt="SIWAR Analysis" id="lg"><span id="msg">جارٍ الفتح…</span><span class="dots"><i></i><i></i><i></i></span>
   <div id="off">لا يوجد اتصال بالإنترنت. النظام يحتاج اتصالًا لعرض البيانات الحديثة.<br><button onclick="location.reload()">إعادة المحاولة</button></div></div>
 <script>
@@ -35,14 +46,39 @@
   var APP_URL = 'ضع_رابط_النظام_هنا';
   try { var q = new URLSearchParams(location.search).get('u'); if (q && /^https:\/\/script\.google\.com\/.+\/exec$/.test(q)) { APP_URL = q; localStorage.setItem('cap_app_url', q); }
         else { var s = localStorage.getItem('cap_app_url'); if (s && APP_URL.indexOf('script.google.com') < 0) APP_URL = s; } } catch (e) {}
+  /* رسائل النظام إلى الغلاف: ready (اكتمل الفتح) · token (حفظ الجلسة هنا لأن تخزين الإطار قد يُمسح في الآيفون) · logout · open (التنقل داخل التطبيق) */
+  var TK = ''; try { TK = localStorage.getItem('siwar_tk') || ''; } catch (e) {}
+  var F = null, READY = false, WD = null, DEPTH = 0, PUSHED = false;
+  /* النظام يعمل داخل إطارين متداخلين من Google — تصل الرسالة لكل الإطارات والنظام يقبلها من التطبيق فقط */
+  function postAll(w, m, d) { try { w.postMessage(m, '*'); } catch (e) {} if (d > 3) return; try { for (var i = 0; i < w.frames.length; i++) postAll(w.frames[i], m, d + 1); } catch (e) {} }
+  function back() { if (F && F.contentWindow) postAll(F.contentWindow, { siwar: 'back' }, 0); }
+  document.getElementById('bk').onclick = back;
+  /* زر الرجوع في الجهاز (أندرويد) أو إيماءة الرجوع: يرجع داخل النظام بدل إغلاق التطبيق */
+  window.addEventListener('popstate', function () { PUSHED = false; if (DEPTH > 0) back(); });
+  function hideSplash() { var sp = document.getElementById('splash'); sp.style.opacity = '0'; setTimeout(function () { sp.style.display = 'none'; }, 400); }
+  function showSplash(t) { var sp = document.getElementById('splash'); sp.style.display = 'flex'; sp.style.opacity = '1'; document.getElementById('msg').textContent = t || 'جارٍ الفتح…'; document.querySelector('.dots').style.display = ''; document.getElementById('off').style.display = 'none'; }
+  function srcFor(page) { var h = 'app=1' + (TK ? '&tk=' + encodeURIComponent(TK) : ''); return APP_URL + (page === 'comm' ? '?page=comm' : '') + '#' + h; }
+  function watchdog() { clearTimeout(WD); READY = false;
+    WD = setTimeout(function () { if (READY) return; document.getElementById('msg').textContent = 'تأخر فتح النظام. تأكد من الاتصال ثم أعد المحاولة.'; document.querySelector('.dots').style.display = 'none';
+      var off = document.getElementById('off'); off.innerHTML = '<button onclick="location.reload()">إعادة المحاولة</button>'; off.style.display = 'block'; }, 20000); }
+  function go(page) { if (!F) return; showSplash(); watchdog(); F.src = srcFor(page); }
+  window.addEventListener('message', function (ev) {
+    if (!/^https:\/\/([a-z0-9-]+\.)*(googleusercontent\.com|script\.google\.com)$/.test(ev.origin)) return;
+    var m = ev.data; if (!m || typeof m !== 'object' || !m.siwar) return;
+    if (m.siwar === 'ready') { READY = true; clearTimeout(WD); hideSplash(); }
+    else if (m.siwar === 'token' && /^[0-9a-f]{64}$/.test(String(m.token || ''))) { TK = m.token; try { localStorage.setItem('siwar_tk', TK); } catch (e) {} }
+    else if (m.siwar === 'logout') { TK = ''; try { localStorage.removeItem('siwar_tk'); } catch (e) {} }
+    else if (m.siwar === 'nav') { DEPTH = +m.depth || 0; document.getElementById('bk').classList.toggle('on', DEPTH > 0); if (DEPTH > 0 && !PUSHED) { PUSHED = true; try { history.pushState({ s: 1 }, ''); } catch (e) {} } }
+    else if (m.siwar === 'open') go(m.page === 'comm' ? 'comm' : 'home');
+  });
   function start() {
     if (!navigator.onLine) { document.getElementById('msg').style.display='none'; document.querySelector('.dots').style.display='none'; document.getElementById('off').style.display='block'; return; }
     if (APP_URL.indexOf('script.google.com') < 0) { document.getElementById('msg').textContent = 'لم يُضبط رابط النظام في ملف index.html'; return; }
-    var f = document.createElement('iframe'); f.src = APP_URL; f.allow = 'clipboard-write'; f.title = 'SIWAR Analysis';
-    f.onload = function () { var sp = document.getElementById('splash'); sp.style.opacity = '0'; setTimeout(function () { sp.style.display = 'none'; }, 400); };
-    document.body.appendChild(f);
+    F = document.createElement('iframe'); F.allow = 'clipboard-write'; F.title = 'SIWAR Analysis';
+    document.body.appendChild(F); go('home');
   }
-  window.addEventListener('online', function () { location.reload(); });
+  window.addEventListener('online', function () { if (document.getElementById('off').style.display === 'block') location.reload(); });
+  window.addEventListener('offline', function () { var sp = document.getElementById('splash'); if (sp.style.display === 'none' || sp.style.opacity === '0') { showSplash('انقطع الاتصال بالإنترنت'); document.querySelector('.dots').style.display = 'none'; var off = document.getElementById('off'); off.innerHTML = 'انقطع الاتصال بالإنترنت. تُعرض البيانات الحديثة عند عودته.<br><button onclick="location.reload()">إعادة المحاولة</button>'; off.style.display = 'block'; } });
   start();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
 </script>
